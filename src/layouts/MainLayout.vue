@@ -48,7 +48,7 @@
             color="primary"
             text-color="white"
             label="Fetch"
-            @click="getMACDdata"
+            @click="getMACD"
           />
         </q-item>
       </q-list>
@@ -59,8 +59,16 @@
         <apexchart
           type="line"
           height="100%"
-          :options="chartOptions"
-          :series="series"
+          width="100%"
+          :options="chartOptionsMACD"
+          :series="seriesMACD"
+        />
+        <apexchart
+          type="line"
+          height="40%"
+          width="100%"
+          :options="chartOptionsMACDdata"
+          :series="seriesMACDdata"
         />
       </q-page>
     </q-page-container>
@@ -97,50 +105,121 @@ export default defineComponent({
   },
   data() {
     return {
-      chartOptions: {
+      chartOptionsMACD: {
         chart: {
-          id: "vuechart-example",
+          id: "MACD chart",
         },
         xaxis: {
-          categories: [1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998],
+          categories: [],
+        },
+        stroke:{
+          width:2
+        }
+      },
+      seriesMACD: [
+        {
+          type:'line',
+          name: "Stock price",
+          data: [],
+        },
+      ],
+
+
+
+      chartOptionsMACDdata: {
+        chart: {
+          id: "MACD chart",
+        },
+        xaxis: {
+          categories: [],
         },
         stroke:{
           width:1
         }
       },
-      series: [
+      seriesMACDdata: [
         {
           type:'line',
-          name: "Stock price",
-          data: [30, 40, 45, 50, 49, 60, 70, 81],
+          name: "MACD value",
+          data: [],
         },
+        {
+          type:'line',
+          name:'Signal value',
+          data:[]
+        }
       ],
+
     };
   },
   methods: {
-    async getMACDdata() {
+    async getMACD() {
       try {
         const call = await api.get(
           "http://localhost:8000/simulating/" + this.stock + "/MACD/"
         );
-        var newSeries=[]
-        var newCategories={
+        var newSeriesMACD=[]
+        var newSeriesMACDdata=[]
+        var newSeriesSignal=[]
+        var newMACDBuyNSellSignal=[]
+
+        var newChartOptionsMACD={
           chart: {
-            id: "vuechart-example",
+            id: "MACD chart",
           },
           xaxis: {
             categories: [],
           },
+          stroke:{
+            width:1
+          }
         }
+
+        var newChartOptionsMACDdata={
+          chart: {
+            id: "MACD chart",
+          },
+          xaxis: {
+            categories: [],
+          },
+          stroke:{
+            width:1
+          }
+        }
+
         for (const [key, value] of Object.entries(call.data)) {
-          newCategories.xaxis.categories.push(key)
-          newSeries.push(value['Close value'])
+          newChartOptionsMACD.xaxis.categories.push(key)
+          newChartOptionsMACDdata.xaxis.categories.push(key)
+          newSeriesMACD.push(value['Close value'])
+          newSeriesMACDdata.push(value['MACD'])
+          newSeriesSignal.push(value['signal'])
         }
-        this.chartOptions=newCategories
-        this.series=[{
-          data:newSeries
-        }]
-        console.log(this.chartOptions.xaxis.categories.length)
+
+        this.chartOptionsMACD=newChartOptionsMACD
+        this.chartOptionsMACDdata=newChartOptionsMACDdata
+
+        this.seriesMACD=[
+          {
+            type:'line',
+            name: "Stock price",
+            data: newSeriesMACD,
+          },
+        ],
+
+        this.seriesMACDdata=[
+          {
+            type:'line',
+            name: "MACD value",
+            data: newSeriesMACDdata,
+          },
+          {
+            type:'line',
+            name:'Signal value',
+            data:newSeriesSignal
+          }
+        ],
+
+        console.log(this.chartOptionsMACD.xaxis.categories.length)
       } catch (error) {
         console.log(error);
       }
