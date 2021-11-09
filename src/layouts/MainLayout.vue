@@ -48,7 +48,7 @@
             color="primary"
             text-color="white"
             label="Fetch"
-            @click="getMACD"
+            @click="()=>{getMACD(); getMeanReversion();}"
           />
         </q-item>
       </q-list>
@@ -56,20 +56,33 @@
 
     <q-page-container class="page-container">
       <q-page>
-        <apexchart
-          type="line"
-          height="100%"
-          width="100%"
-          :options="chartOptionsMACD"
-          :series="seriesMACD"
-        />
-        <apexchart
-          type="line"
-          height="40%"
-          width="100%"
-          :options="chartOptionsMACDdata"
-          :series="seriesMACDdata"
-        />
+        <div class="chart">
+          <apexchart
+            type="line"
+            height="90%"
+            width="100%"
+            :options="chartOptionsMACD"
+            :series="seriesMACD"
+          />
+        </div>
+        <div class="small-chart">
+          <apexchart
+            type="line"
+            height="100%"
+            width="100%"
+            :options="chartOptionsMACDdata"
+            :series="seriesMACDdata"
+          />
+        </div>
+        <div class="chart">
+          <apexchart
+            type="line"
+            height="100%"
+            width="100%"
+            :options="chartOptionsMeanReversion"
+            :series="seriesMeanReversion"
+          />
+        </div>
       </q-page>
     </q-page-container>
   </q-layout>
@@ -114,6 +127,9 @@ export default defineComponent({
         },
         stroke:{
           width:2
+        },
+        annotations:{
+          points:[],
         }
       },
       seriesMACD: [
@@ -123,8 +139,6 @@ export default defineComponent({
           data: [],
         },
       ],
-
-
 
       chartOptionsMACDdata: {
         chart: {
@@ -150,9 +164,128 @@ export default defineComponent({
         }
       ],
 
+      chartOptionsMeanReversion:{
+        chart: {
+          id: "MACD chart",
+        },
+        xaxis: {
+          categories: [],
+        },
+        stroke:{
+          width:1
+        },
+        annotations:{
+          points:[],
+        }
+      },
+      seriesMeanReversion:[]
+
     };
   },
   methods: {
+    async getMeanReversion(){
+      try{
+        var call = await api.get(
+          "http://localhost:8000/simulating/" + this.stock + "/MeanReversion/"
+        );
+      }catch(error){
+        console.log(error)
+      }
+
+      let chartOptionsMeanReversion={
+        chart: {
+          id: "Mean Reversion chart",
+        },
+        xaxis: {
+          categories: [],
+        },
+        stroke:{
+          width:1
+        },
+        annotations:{
+          points:[],
+        }
+      }
+      var closeValueSeries=[]
+      var SMA30series=[]
+      var SMA90series=[]
+
+      for (const [key, value] of Object.entries(call.data)){
+        chartOptionsMeanReversion.xaxis.categories.push(key)
+        SMA30series.push(value['SMA30'])
+        SMA90series.push(value['SMA90'])
+        closeValueSeries.push(value['Close value'])
+        if (value['Signal to buy']){
+            var point={
+              x:key,
+              y:value['Close value'],
+              marker:{
+                size:3,
+                fillColor:'#00FF85',
+                strokeColor:'#fff',
+                radius:2
+              },
+              label: {
+                borderColor: "#00FF85",
+                offsetY: 0,
+                style: {
+                  color: "#fff",
+                  background: "#00FF85"
+                },
+
+                text: "Signal to buy"
+              }
+            }
+            chartOptionsMeanReversion.annotations.points.push(point)
+
+          } else if (value['Signal to sell']){
+            var point={
+              x:key,
+              y:value['Close value'],
+              marker:{
+                size:3,
+                fillColor:'#FF1818',
+                strokeColor:'#fff',
+                radius:2
+              },
+              label: {
+                borderColor: "#FF1818",
+                offsetY: 0,
+                style: {
+                  color: "#fff",
+                  background: "#FF1818"
+                },
+
+                text: "Signal to sell"
+              }
+            }
+
+            chartOptionsMeanReversion.annotations.points.push(point)
+          }
+      }
+
+      this.chartOptionsMeanReversion=chartOptionsMeanReversion
+      this.seriesMeanReversion=[
+        {
+          type:'line',
+          name: "Stock price",
+          data: closeValueSeries,
+        },
+        {
+          type:'line',
+          name: "30-day Simple Moving Average",
+          data: SMA30series,
+        },
+        {
+          type:'line',
+          name: "90-day Simple Moving Average",
+          data: SMA90series,
+        },
+      ]
+
+    },
+
+
     async getMACD() {
       try {
         const call = await api.get(
@@ -161,7 +294,6 @@ export default defineComponent({
         var newSeriesMACD=[]
         var newSeriesMACDdata=[]
         var newSeriesSignal=[]
-        var newMACDBuyNSellSignal=[]
 
         var newChartOptionsMACD={
           chart: {
@@ -172,7 +304,11 @@ export default defineComponent({
           },
           stroke:{
             width:1
+          },
+          annotations:{
+            points:[],
           }
+          
         }
 
         var newChartOptionsMACDdata={
@@ -184,6 +320,9 @@ export default defineComponent({
           },
           stroke:{
             width:1
+          },
+          annotations:{
+            points:[],
           }
         }
 
@@ -193,6 +332,66 @@ export default defineComponent({
           newSeriesMACD.push(value['Close value'])
           newSeriesMACDdata.push(value['MACD'])
           newSeriesSignal.push(value['signal'])
+          if (value['Signal to buy']){
+            var point={
+              x:key,
+              y:value['Close value'],
+              marker:{
+                size:3,
+                fillColor:'#00FF85',
+                strokeColor:'#fff',
+                radius:2
+              },
+              label: {
+                borderColor: "#00FF85",
+                offsetY: 0,
+                style: {
+                  color: "#fff",
+                  background: "#00FF85"
+                },
+
+                text: "Signal to buy"
+              }
+            }
+            newChartOptionsMACD.annotations.points.push(point)
+
+            var point2=JSON.parse(JSON.stringify(point)); // deep copy
+
+            point2.y=value['MACD']
+
+            newChartOptionsMACDdata.annotations.points.push(point2)
+
+          } else if (value['Signal to sell']){
+            var point={
+              x:key,
+              y:value['Close value'],
+              marker:{
+                size:3,
+                fillColor:'#FF1818',
+                strokeColor:'#fff',
+                radius:2
+              },
+              label: {
+                borderColor: "#FF1818",
+                offsetY: 0,
+                style: {
+                  color: "#fff",
+                  background: "#FF1818"
+                },
+
+                text: "Signal to sell"
+              }
+            }
+
+            newChartOptionsMACD.annotations.points.push(point)
+
+            var point2=JSON.parse(JSON.stringify(point)); // deep copy
+
+            point2.y=value['MACD']
+
+            newChartOptionsMACDdata.annotations.points.push(point2)
+          }
+
         }
 
         this.chartOptionsMACD=newChartOptionsMACD
@@ -286,8 +485,11 @@ export default defineComponent({
 });
 </script>
 <style scoped>
-.page-container {
-  height: 100%;
-  width: 100%;
+.chart{
+  height: 90vh;
+}
+
+.small-chart{
+  height: 30vh;
 }
 </style>
